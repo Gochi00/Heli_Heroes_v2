@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>IRON ROTOR - High Performance Survival Evasion</title>
+  <style>
+    /* Zero-Dependency, Enterprise-Safe Native Styling */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --zoom-factor: 1;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #020603;
+      font-family: Consolas, 'Courier New', Monaco, monospace, system-ui;
+      color: #3bf377;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #050d07;
+      z-index: 1;
+    }
+
+    /* Subtle military CRT Scanline Overlay */
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                  radial-gradient(circle at center, transparent 65%, rgba(0, 0, 0, 0.75) 100%);
+      background-size: 100% 4px, 100% 100%;
+    }
+
+    /* Common HUD Containers */
+    .hud-box {
+      background: rgba(3, 15, 7, 0.92);
+      border: 1px solid rgba(59, 243, 119, 0.55);
+      border-radius: 6px;
+      box-shadow: inset 0 0 10px rgba(59, 243, 119, 0.2), 0 4px 14px rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* Top HUD Area */
+    #topHud {
+      position: absolute;
+      top: max(10px, var(--safe-top));
+      left: max(10px, var(--safe-left));
+      right: max(10px, var(--safe-right));
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+      gap: 8px;
+    }
+
+    .top-action-bar {
+      display: flex;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .hud-icon-btn {
+      background: rgba(4, 20, 10, 0.9);
+      border: 1px solid #3bf377;
+      color: #3bf377;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+    .hud-icon-btn:active {
+      transform: scale(0.96);
+      background: #3bf377;
+      color: #000;
+    }
+
+    /* Bottom HUD Zone */
+    #bottomHudZone {
+      position: absolute;
+      bottom: max(10px, var(--safe-bottom));
+      left: max(10px, var(--safe-left));
+      right: max(10px, var(--safe-right));
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      pointer-events: none;
+      z-index: 10;
+      gap: 12px;
+    }
+
+    /* Clustered Tactical Dashboard (Bottom Left) */
+    #tacticalDashboard {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transform-origin: bottom left;
+      transform: scale(var(--zoom-factor));
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* High contrast tactical buttons */
+    .tactical-btn {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: rgba(3, 14, 8, 0.94);
+      border: 1.5px solid #3bf377;
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      color: #fff;
+      font-family: inherit;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.7);
+      transition: filter 0.1s, transform 0.05s;
+    }
+    .tactical-btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-flare { border-color: #f59e0b; color: #fbbf24; width: 70px; height: 60px; }
+    .btn-chaff { border-color: #06b6d4; color: #67e8f9; width: 70px; height: 60px; }
+    .btn-dircm { border-color: #ec4899; color: #f472b6; width: 85px; height: 60px; }
+    .btn-toggle { border-color: #3bf377; color: #3bf377; min-height: 32px; padding: 4px 8px; font-size: 11px; font-weight: 700; }
+    .btn-jam { border-color: #a855f7; color: #d8b4fe; min-width: 90px; height: 60px; }
+    .btn-alt { border-color: #10b981; color: #6ee7b7; min-width: 140px; height: 60px; }
+
+    .btn-title {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .btn-tag {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-size: 8px;
+    }
+    .btn-val {
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      margin: 2px 0;
+    }
+    .btn-sub {
+      font-size: 8px;
+      opacity: 0.85;
+      text-align: center;
+      letter-spacing: -0.2px;
+    }
+
+    /* Active / Triggered States */
+    .btn-active-state {
+      background: #3bf377 !important;
+      color: #000 !important;
+      box-shadow: 0 0 14px #3bf377 !important;
+    }
+    .btn-active-purple {
+      background: #9333ea !important;
+      color: #fff !important;
+      box-shadow: 0 0 14px #c084fc !important;
+    }
+
+    /* Danger Threat Warnings: Bottom Right of Buttons, 2x Enlarge */
+    #threatWarningContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      margin-left: 12px;
+      gap: 6px;
+      pointer-events: none;
+      min-width: 0;
+    }
+
+    .threat-banner {
+      display: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 20px; /* 2x enlargement for high visibility */
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+      animation: pulseAlert 0.8s infinite alternate;
+      border-width: 2px;
+      border-style: solid;
+      background: rgba(8, 0, 0, 0.88);
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @keyframes pulseAlert {
+      0% { opacity: 0.82; transform: scale(0.99); }
+      100% { opacity: 1; transform: scale(1.02); filter: brightness(1.2); }
+    }
+
+    .threat-manpad {
+      color: #ff3344;
+      border-color: #ff3344;
+      box-shadow: 0 0 20px rgba(255, 51, 68, 0.45);
+    }
+    .threat-sam {
+      color: #ffaa00;
+      border-color: #ffaa00;
+      box-shadow: 0 0 20px rgba(255, 170, 0, 0.45);
+    }
+
+    /* DIRCM Tactical Status Banner */
+    .dircm-status-banner {
+      display: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: rgba(18, 4, 18, 0.9);
+      border: 1.5px solid #ec4899;
+      color: #f472b6;
+      box-shadow: 0 0 14px rgba(236, 72, 153, 0.4);
+      white-space: nowrap;
+    }
+
+    /* Transparent Pause & Mission Briefing Overlay */
+    #briefingModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 8, 4, 0.82);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+
+    .modal-card {
+      background: #030d06;
+      border: 2px solid #3bf377;
+      border-radius: 10px;
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 18px 22px;
+      color: #c9fdd7;
+      box-shadow: 0 0 35px rgba(59, 243, 119, 0.25);
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #3bf377;
+      text-align: center;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 6px 0;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 7px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(59, 243, 119, 0.25);
+    }
+    .slider-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .slider-input {
+      width: 130px;
+      accent-color: #3bf377;
+      cursor: pointer;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 900;
+      font-family: inherit;
+      color: #000;
+      background: #3bf377;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 4px 14px rgba(59, 243, 119, 0.4);
+    }
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Game Over Modal */
+    #gameOverModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      z-index: 60;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .threat-banner { font-size: 15px; padding: 6px 10px; }
+      .btn-flare, .btn-chaff { width: 58px; height: 54px; }
+      .btn-dircm { width: 70px; height: 54px; }
+      .btn-jam { min-width: 75px; height: 54px; }
+      .btn-alt { min-width: 110px; height: 54px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+  <div class="scanlines"></div>
+
+  <!-- Top Persistent HUD -->
+  <div id="topHud">
+    <!-- Mission Telemetry -->
+    <div class="hud-box" style="padding: 6px 12px; min-width: 150px;">
+      <div style="font-size: 10px; color: #86efac; font-weight: 700;">MISSION TIMER</div>
+      <div id="hudClock" style="font-size: 22px; font-weight: 900; color: #3bf377;">00:00.00</div>
+      <div style="font-size: 10px; color: #fbbf24; margin-top: 2px;">
+        EVADED: <span id="hudEvaded" style="font-weight: 900;">0</span>
+      </div>
+    </div>
+
+    <!-- Right Flight Controls & Fullscreen -->
+    <div class="top-action-bar">
+      <button id="fullscreenToggleBtn" class="hud-icon-btn" type="button" title="Toggle Fullscreen">
+        <span>⛶</span> <span id="fsBtnLabel">FULLSCREEN</span>
+      </button>
+      <button id="pauseBtn" class="hud-icon-btn" type="button" title="Pause Game">
+        <span>⏸</span> <span>PAUSE</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom HUD Zone: Left Clustered Buttons + Right 2x Threat Warnings -->
+  <div id="bottomHudZone">
+    
+    <!-- Bottom-Left Clustered Buttons -->
+    <div id="tacticalDashboard">
+      
+      <!-- Top Row: Automation & Jammer Target Mode -->
+      <div class="btn-row">
+        <button id="btnAutoCm" class="tactical-btn btn-toggle" type="button">
+          AUTO CM: <span id="autoCmLabel">OFF</span>
+        </button>
+        <button id="btnJamMode" class="tactical-btn btn-toggle" type="button" style="border-color: #c084fc; color: #e9d5ff;">
+          JAM TARGET: <span id="jamModeLabel">1 NEAREST</span>
+        </button>
+      </div>
+
+      <!-- Middle Row: Flare, Chaff, DIRCM -->
+      <div class="btn-row">
+        <button id="btnFlare" class="tactical-btn btn-flare" type="button">
+          <div class="btn-title"><span>FLARE</span><span class="btn-tag">F</span></div>
+          <div id="dispFlareCount" class="btn-val">6</div>
+          <div class="btn-sub">MANPADS</div>
+        </button>
+
+        <button id="btnChaff" class="tactical-btn btn-chaff" type="button">
+          <div class="btn-title"><span>CHAFF</span><span class="btn-tag">C</span></div>
+          <div id="dispChaffCount" class="btn-val">6</div>
+          <div class="btn-sub">RF SAM</div>
+        </button>
+
+        <button id="btnDircm" class="tactical-btn btn-dircm btn-active-state" type="button">
+          <div class="btn-title"><span>DIRCM</span><span class="btn-tag">D</span></div>
+          <div id="dispDircmState" class="btn-val" style="font-size: 14px; margin-top: 5px;">ON</div>
+          <div class="btn-sub">IR LASER</div>
+        </button>
+      </div>
+
+      <!-- Bottom Row: Toggle Jammer, Altitude Toggle -->
+      <div class="btn-row">
+        <button id="btnJammer" class="tactical-btn btn-jam" type="button">
+          <div class="btn-title"><span>ECM JAM</span><span class="btn-tag">J</span></div>
+          <div id="dispJammerStatus" class="btn-val" style="font-size: 14px; margin-top: 5px;">OFF</div>
+          <div class="btn-sub">-70% RADAR</div>
+        </button>
+
+        <button id="btnAltitude" class="tactical-btn btn-alt" type="button">
+          <div class="btn-title"><span>ALTITUDE</span><span class="btn-tag">SPC</span></div>
+          <div id="dispAltLabel" class="btn-val" style="font-size: 14px; color: #fbbf24; margin-top: 4px;">LOW (NOE)</div>
+          <div id="dispAltSub" class="btn-sub">-50% SAM | MP ARMED</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Threat Warnings Container: Bottom Right of Buttons, 2x Enlarge -->
+    <div id="threatWarningContainer">
+      <div id="dircmStatusMsg" class="dircm-status-banner"></div>
+      <div id="warnManpad" class="threat-banner threat-manpad">
+        ⚠️ MANPAD launch detected
+      </div>
+      <div id="warnSam" class="threat-banner threat-sam">
+        ⚡ RF SAM locking detected
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Transparent Pause & Mission Briefing Overlay -->
+  <div id="briefingModal">
+    <div class="modal-card">
+      <div class="modal-title" id="menuHeaderTitle">MISSION BRIEFING</div>
+      <div style="font-size: 12px; line-height: 1.5; color: #86efac; margin-bottom: 10px; text-align: center;">
+        Pure survival protocol. Survive as long as possible. The helicopter carries zero firearms. Evade or defeat ground threats using countermeasures and altitude tactics.
+      </div>
+
+      <!-- Tactical Adjustment Sliders -->
+      <div style="margin: 8px 0; border-top: 1px solid rgba(59, 243, 119, 0.3); padding-top: 8px;">
+        <div style="font-size: 12px; font-weight: 800; color: #3bf377; margin-bottom: 6px;">COUNTERMEASURE EFFECTIVENESS TUNING</div>
+        
+        <div class="slider-row">
+          <span class="slider-label">Flare Effectiveness: <span id="flarePctText" style="color: #fbbf24;">90%</span></span>
+          <input type="range" id="sliderFlare" class="slider-input" min="20" max="100" value="90">
+        </div>
+
+        <div class="slider-row">
+          <span class="slider-label">Chaff Effectiveness: <span id="chaffPctText" style="color: #67e8f9;">90%</span></span>
+          <input type="range" id="sliderChaff" class="slider-input" min="20" max="100" value="90">
+        </div>
+
+        <div class="slider-row">
+          <span class="slider-label">DIRCM Effectiveness: <span id="dircmEffPctText" style="color: #f472b6;">70%</span></span>
+          <input type="range" id="sliderDircmEff" class="slider-input" min="0" max="100" value="70">
+        </div>
+
+        <div class="slider-row">
+          <span class="slider-label">DIRCM Jam Speed: <span id="dircmPctText" style="color: #e879f9;">1.5s</span></span>
+          <input type="range" id="sliderDircm" class="slider-input" min="0.8" max="3.0" step="0.1" value="1.5">
+        </div>
+      </div>
+
+      <!-- Key Operation Reference -->
+      <div style="font-size: 11px; line-height: 1.5; background: rgba(0, 0, 0, 0.4); padding: 8px; border-radius: 6px; border: 1px solid #14532d;">
+        <div>• <b>Altitude (SPACE):</b> HIGH (FL100) avoids MANPADS, but SAM radar circles operate at 100% (75% screen size). LOW (NOE) drops SAM radar radius by 50%, but exposes you to MANPADS infantry.</div>
+        <div>• <b>DIRCM Jamming:</b> Shines an IR laser on the nearest MANPAD missile for 1.5s. If the effectiveness roll fails, the missile continues homing and DIRCM moves on without knowing—<b>trigger flares manually!</b></div>
+        <div>• <b>ECM Jammer (J):</b> Toggle ON/OFF to shrink the 1 or 2 nearest SAM radar sites by 70%.</div>
+        <div>• <b>Missiles:</b> SAM missiles self-destruct after 15s; MANPADS after 10s.</div>
+      </div>
+
+      <button id="btnResumeMission" class="modal-btn" type="button">LAUNCH MISSION</button>
+      <button id="btnRestartMission" class="modal-btn" type="button" style="background: #1e293b; color: #94a3b8; display: none;">RESTART SORTIE</button>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverModal">
+    <div class="modal-card" style="border-color: #ef4444; box-shadow: 0 0 35px rgba(239, 68, 68, 0.4); text-align: center;">
+      <div class="modal-title" style="color: #ef4444;">AIRCRAFT DESTROYED</div>
+      <div id="causeOfDeath" style="font-size: 13px; color: #fca5a5; margin-bottom: 14px;">DIRECT MISSILE IMPACT</div>
+
+      <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 13px; text-align: left; line-height: 1.8;">
+        <div>SURVIVAL TIME: <b id="statFinalTime" style="color: #3bf377; float: right;">00:00.00</b></div>
+        <div>MISSILES EVADED: <b id="statFinalEvaded" style="color: #fbbf24; float: right;">0</b></div>
+        <div>FLARES DEPLOYED: <b id="statFinalFlares" style="float: right;">0</b></div>
+        <div>CHAFF DISPENSED: <b id="statFinalChaff" style="float: right;">0</b></div>
+        <div>DIRCM LOCKS BROKEN: <b id="statFinalDircm" style="float: right;">0</b></div>
+      </div>
+
+      <button id="btnReplay" class="modal-btn" style="background: #ef4444; color: #fff;" type="button">SCRAMBLE REPLACEMENT CHOPPER</button>
+    </div>
+  </div>
+
+  <!-- Main Game Engine Script -->
+  <script>
+    /**
+     * Defensive Web Audio Engine
+     * Zero external dependencies. Fails gracefully if audio policies or remote terminals block context.
+     */
+    class DefensiveAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.rotorOsc = null;
+        this.rotorGain = null;
+        this.initialized = false;
+      }
+
+      init() {
+        if (this.initialized) return;
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          this.ctx = new AudioContext();
+          
+          this.rotorGain = this.ctx.createGain();
+          this.rotorGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+          this.rotorGain.connect(this.ctx.destination);
+
+          this.rotorOsc = this.ctx.createOscillator();
+          this.rotorOsc.type = 'sawtooth';
+          this.rotorOsc.frequency.setValueAtTime(42, this.ctx.currentTime);
+          this.rotorOsc.connect(this.rotorGain);
+          this.rotorOsc.start();
+
+          this.initialized = true;
+        } catch (err) {
+          console.warn("AudioContext unavailable or blocked:", err);
+        }
+      }
+
+      setEnginePitch(highAlt) {
+        if (!this.ctx || !this.rotorOsc) return;
+        try {
+          this.rotorOsc.frequency.setTargetAtTime(highAlt ? 55 : 42, this.ctx.currentTime, 0.2);
+        } catch(e) {}
+      }
+
+      playLaunch(isSam) {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = isSam ? 'sawtooth' : 'triangle';
+          osc.frequency.setValueAtTime(isSam ? 130 : 280, now);
+          osc.frequency.exponentialRampToValueAtTime(isSam ? 640 : 920, now + 0.45);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } catch (e) {}
+      }
+
+      playFlare() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.25, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.3));
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buf;
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          noise.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+
+      playChaff() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(3200, now);
+          osc.frequency.linearRampToValueAtTime(900, now + 0.35);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.38);
+        } catch (e) {}
+      }
+
+      playLaserHum() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1200, now);
+          osc.frequency.linearRampToValueAtTime(1800, now + 0.15);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } catch (e) {}
+      }
+
+      playExplosion() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.6, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.5);
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buf;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(450, now);
+          filter.frequency.linearRampToValueAtTime(60, now + 0.58);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+    }
+
+    const sound = new DefensiveAudioEngine();
+
+    // Canvas & High-DPI Pipeline
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let screenWidth = window.innerWidth;
+    let screenHeight = window.innerHeight;
+    let WORLD_WIDTH = screenWidth * 3;
+    let WORLD_HEIGHT = screenHeight;
+    let dpr = window.devicePixelRatio || 1;
+
+    // Tactical configuration and state
+    const CONFIG = {
+      flareEffectiveness: 0.90,
+      chaffEffectiveness: 0.90,
+      dircmEffectiveness: 0.70, // Default 70% effectiveness
+      dircmTrackingTime: 1.5,   // Seconds needed for engagement cycle
+      samMissileLife: 15.0,     // SAM 15s lifespan
+      manpadMissileLife: 10.0   // MANPADS 10s lifespan
+    };
+
+    const GAME = {
+      state: 'MENU',
+      startTime: 0,
+      elapsedTime: 0,
+      evadedCount: 0,
+      flaresLeft: 6,
+      flaresUsed: 0,
+      chaffLeft: 6,
+      chaffUsed: 0,
+      dircmDefeats: 0,
+      autoCm: false,
+      jamActive: false,
+      jamTargetMode: 1, // 1 or 2 nearest SAM radar sites
+      dircmEnabled: true, // Toggleable DIRCM state
+      altitude: 'LOW',  // 'LOW' or 'HIGH'
+      cameraX: 0,
+      terrainScrollY: 0,
+      scrollSpeed: 175
+    };
+
+    const player = {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      speed: 340,
+      rotorAngle: 0,
+      hitRadius: 16,
+      altTransition: 0 // 0 for LOW, 1 for HIGH
+    };
+
+    // DIRCM State Machine
+    const dircm = {
+      targetMissile: null,
+      laserTimer: 0.0,
+      active: false,
+      statusMsg: '',
+      statusTimer: 0.0,
+      statusIsWarning: false
+    };
+
+    // Controls tracking
+    const keys = { w: false, s: false, a: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+    const joystick = {
+      active: false,
+      touchId: null,
+      isMouse: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      dx: 0,
+      dy: 0,
+      maxRadius: 54
+    };
+
+    // Entities
+    const groundEnemies = [];
+    const missiles = [];
+    const decoys = [];
+    const particles = [];
+    const terrainFeatures = [];
+
+    /**
+     * Seamless Canvas & Screen Resize Handler
+     */
+    function handleResize() {
+      const prevW = screenWidth || window.innerWidth;
+      const prevH = screenHeight || window.innerHeight;
+
+      screenWidth = window.innerWidth;
+      screenHeight = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.floor(screenWidth * dpr);
+      canvas.height = Math.floor(screenHeight * dpr);
+      canvas.style.width = screenWidth + 'px';
+      canvas.style.height = screenHeight + 'px';
+
+      const oldWorldWidth = WORLD_WIDTH || (screenWidth * 3);
+      WORLD_WIDTH = screenWidth * 3;
+      WORLD_HEIGHT = screenHeight;
+
+      if (player.x !== 0 && oldWorldWidth > 0) {
+        player.x = (player.x / oldWorldWidth) * WORLD_WIDTH;
+        player.y = (player.y / prevH) * screenHeight;
+      } else {
+        player.x = WORLD_WIDTH / 2;
+        player.y = screenHeight * 0.72;
+      }
+
+      // Zoom factor calculation for tactical buttons
+      const vpScale = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
+      const zoomCompensation = Math.max(0.7, Math.min(1.3, 1 / vpScale));
+      document.documentElement.style.setProperty('--zoom-factor', zoomCompensation.toFixed(3));
+    }
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => setTimeout(handleResize, 150));
+    document.addEventListener('fullscreenchange', handleResize);
+    document.addEventListener('webkitfullscreenchange', handleResize);
+
+    function getSamRadarBaseRadius() {
+      return Math.round(Math.max(screenWidth, screenHeight) * 0.75);
+    }
+
+    /**
+     * Fullscreen Toggle System
+     */
+    const fsToggleBtn = document.getElementById('fullscreenToggleBtn');
+    const fsBtnLabel = document.getElementById('fsBtnLabel');
+
+    function toggleFullscreen() {
+      sound.init();
+      const doc = window.document;
+      const docEl = doc.documentElement;
+
+      const requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      const exitFs = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+      const isFs = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+
+      if (!isFs) {
+        if (requestFs) requestFs.call(docEl).catch(err => console.log('Fullscreen failed:', err));
+      } else {
+        if (exitFs) exitFs.call(doc).catch(err => console.log('Exit fullscreen failed:', err));
+      }
+    }
+
+    function updateFullscreenLabel() {
+      const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsBtnLabel) {
+        fsBtnLabel.innerText = isFs ? 'WINDOWED' : 'FULLSCREEN';
+      }
+    }
+    document.addEventListener('fullscreenchange', updateFullscreenLabel);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenLabel);
+    fsToggleBtn.addEventListener('click', toggleFullscreen);
+
+    /**
+     * Tactical Control Handlers
+     */
+    function triggerFlare() {
+      sound.init();
+      if (GAME.flaresLeft <= 0 || GAME.state !== 'PLAYING') return;
+      GAME.flaresLeft--;
+      GAME.flaresUsed++;
+      document.getElementById('dispFlareCount').innerText = GAME.flaresLeft;
+      sound.playFlare();
+
+      for (let i = 0; i < 4; i++) {
+        const ang = Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+        const spd = 80 + Math.random() * 80;
+        decoys.push({
+          type: 'FLARE',
+          x: player.x + (Math.random() - 0.5) * 12,
+          y: player.y + 12,
+          vx: Math.cos(ang) * spd + player.vx * 0.2,
+          vy: Math.sin(ang) * spd + GAME.scrollSpeed * 0.4,
+          life: 3.2,
+          maxLife: 3.2,
+          radius: 7
+        });
+      }
+    }
+
+    function triggerChaff() {
+      sound.init();
+      if (GAME.chaffLeft <= 0 || GAME.state !== 'PLAYING') return;
+      GAME.chaffLeft--;
+      GAME.chaffUsed++;
+      document.getElementById('dispChaffCount').innerText = GAME.chaffLeft;
+      sound.playChaff();
+
+      for (let i = 0; i < 6; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 30 + Math.random() * 50;
+        decoys.push({
+          type: 'CHAFF',
+          x: player.x + (Math.random() - 0.5) * 14,
+          y: player.y + 10,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd + GAME.scrollSpeed * 0.25,
+          life: 4.5,
+          maxLife: 4.5,
+          radius: 18 + Math.random() * 8
+        });
+      }
+    }
+
+    function toggleJammer() {
+      sound.init();
+      if (GAME.state !== 'PLAYING') return;
+      GAME.jamActive = !GAME.jamActive;
+      const jamBtn = document.getElementById('btnJammer');
+      const jamStatus = document.getElementById('dispJammerStatus');
+      if (GAME.jamActive) {
+        jamBtn.classList.add('btn-active-purple');
+        jamStatus.innerText = 'ON';
+      } else {
+        jamBtn.classList.remove('btn-active-purple');
+        jamStatus.innerText = 'OFF';
+      }
+    }
+
+    function toggleDircm() {
+      sound.init();
+      if (GAME.state !== 'PLAYING') return;
+      GAME.dircmEnabled = !GAME.dircmEnabled;
+      const btn = document.getElementById('btnDircm');
+      const disp = document.getElementById('dispDircmState');
+
+      if (GAME.dircmEnabled) {
+        btn.classList.add('btn-active-state');
+        disp.innerText = 'ON';
+        disp.style.color = '#fff';
+      } else {
+        btn.classList.remove('btn-active-state');
+        disp.innerText = 'OFF';
+        disp.style.color = '#94a3b8';
+        dircm.active = false;
+        dircm.targetMissile = null;
+        dircm.laserTimer = 0.0;
+      }
+    }
+
+    function toggleJamMode() {
+      sound.init();
+      GAME.jamTargetMode = (GAME.jamTargetMode === 1) ? 2 : 1;
+      document.getElementById('jamModeLabel').innerText = `${GAME.jamTargetMode} NEAREST`;
+    }
+
+    function toggleAutoCm() {
+      sound.init();
+      GAME.autoCm = !GAME.autoCm;
+      const btn = document.getElementById('btnAutoCm');
+      const lbl = document.getElementById('autoCmLabel');
+      lbl.innerText = GAME.autoCm ? 'ON' : 'OFF';
+      if (GAME.autoCm) {
+        btn.classList.add('btn-active-state');
+      } else {
+        btn.classList.remove('btn-active-state');
+      }
+    }
+
+    function toggleAltitude() {
+      sound.init();
+      if (GAME.state !== 'PLAYING') return;
+      GAME.altitude = (GAME.altitude === 'LOW') ? 'HIGH' : 'LOW';
+      sound.setEnginePitch(GAME.altitude === 'HIGH');
+      updateAltitudeDisplay();
+    }
+
+    function updateAltitudeDisplay() {
+      const altLbl = document.getElementById('dispAltLabel');
+      const altSub = document.getElementById('dispAltSub');
+      if (GAME.altitude === 'HIGH') {
+        altLbl.innerText = 'HIGH (FL100)';
+        altLbl.style.color = '#38bdf8';
+        altSub.innerText = 'MP IMMUNE | SAM 100%';
+      } else {
+        altLbl.innerText = 'LOW (NOE)';
+        altLbl.style.color = '#fbbf24';
+        altSub.innerText = '-50% SAM | MP ARMED';
+      }
+    }
+
+    function attachBtnAction(id, actionFn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const handler = (e) => {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        actionFn();
+      };
+      el.addEventListener('touchstart', handler, { passive: false });
+      el.addEventListener('mousedown', handler);
+    }
+
+    attachBtnAction('btnFlare', triggerFlare);
+    attachBtnAction('btnChaff', triggerChaff);
+    attachBtnAction('btnDircm', toggleDircm);
+    attachBtnAction('btnJammer', toggleJammer);
+    attachBtnAction('btnJamMode', toggleJamMode);
+    attachBtnAction('btnAutoCm', toggleAutoCm);
+    attachBtnAction('btnAltitude', toggleAltitude);
+
+    // Keyboard bindings
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+      if (e.key in keys) keys[e.key] = true;
+      if (e.key.toLowerCase() === 'w') keys.w = true;
+      if (e.key.toLowerCase() === 's') keys.s = true;
+      if (e.key.toLowerCase() === 'a') keys.a = true;
+      if (e.key.toLowerCase() === 'd') keys.d = true;
+
+      if (e.key.toLowerCase() === 'f') triggerFlare();
+      if (e.key.toLowerCase() === 'c') triggerChaff();
+      if (e.key.toLowerCase() === 'j') toggleJammer();
+      if (e.key.toLowerCase() === 'r' || (e.shiftKey && e.key.toLowerCase() === 'd')) toggleDircm();
+      if (e.key === ' ' || e.key.toLowerCase() === 'space') toggleAltitude();
+      if (e.key === 'Escape' || e.key.toLowerCase() === 'p') togglePause();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key in keys) keys[e.key] = false;
+      if (e.key.toLowerCase() === 'w') keys.w = false;
+      if (e.key.toLowerCase() === 's') keys.s = false;
+      if (e.key.toLowerCase() === 'a') keys.a = false;
+      if (e.key.toLowerCase() === 'd') keys.d = false;
+    });
+
+    /**
+     * Joystick & Drag Handler
+     */
+    function getCanvasCoords(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.target.closest('#tacticalDashboard') || e.target.closest('#topHud') || e.target.closest('#briefingModal') || e.target.closest('#gameOverModal')) {
+        return;
+      }
+      sound.init();
+      const pt = getCanvasCoords(e.clientX, e.clientY);
+      joystick.active = true;
+      joystick.isMouse = true;
+      joystick.startX = pt.x;
+      joystick.startY = pt.y;
+      joystick.currentX = pt.x;
+      joystick.currentY = pt.y;
+      joystick.dx = 0;
+      joystick.dy = 0;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!joystick.active || !joystick.isMouse) return;
+      const pt = getCanvasCoords(e.clientX, e.clientY);
+      joystick.currentX = pt.x;
+      joystick.currentY = pt.y;
+      const rawX = joystick.currentX - joystick.startX;
+      const rawY = joystick.currentY - joystick.startY;
+      const dist = Math.hypot(rawX, rawY);
+      if (dist > joystick.maxRadius) {
+        joystick.dx = (rawX / dist) * joystick.maxRadius;
+        joystick.dy = (rawY / dist) * joystick.maxRadius;
+      } else {
+        joystick.dx = rawX;
+        joystick.dy = rawY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (joystick.isMouse) {
+        joystick.active = false;
+        joystick.isMouse = false;
+        joystick.dx = 0;
+        joystick.dy = 0;
+      }
+    });
+
+    window.addEventListener('touchstart', (e) => {
+      sound.init();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const elem = document.elementFromPoint(t.clientX, t.clientY);
+        if (elem && (elem.closest('#tacticalDashboard') || elem.closest('#topHud') || elem.closest('#briefingModal') || elem.closest('#gameOverModal'))) {
+          continue;
+        }
+
+        if (!joystick.active) {
+          const pt = getCanvasCoords(t.clientX, t.clientY);
+          joystick.active = true;
+          joystick.isMouse = false;
+          joystick.touchId = t.identifier;
+          joystick.startX = pt.x;
+          joystick.startY = pt.y;
+          joystick.currentX = pt.x;
+          joystick.currentY = pt.y;
+          joystick.dx = 0;
+          joystick.dy = 0;
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!joystick.active || joystick.isMouse) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === joystick.touchId) {
+          if (e.cancelable) e.preventDefault();
+          const pt = getCanvasCoords(t.clientX, t.clientY);
+          joystick.currentX = pt.x;
+          joystick.currentY = pt.y;
+          const rawX = joystick.currentX - joystick.startX;
+          const rawY = joystick.currentY - joystick.startY;
+          const dist = Math.hypot(rawX, rawY);
+          if (dist > joystick.maxRadius) {
+            joystick.dx = (rawX / dist) * joystick.maxRadius;
+            joystick.dy = (rawY / dist) * joystick.maxRadius;
+          } else {
+            joystick.dx = rawX;
+            joystick.dy = rawY;
+          }
+          break;
+        }
+      }
+    }, { passive: false });
+
+    function handleTouchEnd(e) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (joystick.active && !joystick.isMouse && t.identifier === joystick.touchId) {
+          joystick.active = false;
+          joystick.touchId = null;
+          joystick.dx = 0;
+          joystick.dy = 0;
+          break;
+        }
+      }
+    }
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchEnd);
+
+    /**
+     * Pause & Slider Configuration System
+     */
+    const briefingModal = document.getElementById('briefingModal');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const btnResumeMission = document.getElementById('btnResumeMission');
+    const btnRestartMission = document.getElementById('btnRestartMission');
+    const menuHeaderTitle = document.getElementById('menuHeaderTitle');
+
+    // Tuning Sliders
+    const sliderFlare = document.getElementById('sliderFlare');
+    const sliderChaff = document.getElementById('sliderChaff');
+    const sliderDircmEff = document.getElementById('sliderDircmEff');
+    const sliderDircm = document.getElementById('sliderDircm');
+    const flarePctText = document.getElementById('flarePctText');
+    const chaffPctText = document.getElementById('chaffPctText');
+    const dircmEffPctText = document.getElementById('dircmEffPctText');
+    const dircmPctText = document.getElementById('dircmPctText');
+
+    sliderFlare.addEventListener('input', (e) => {
+      CONFIG.flareEffectiveness = e.target.value / 100;
+      flarePctText.innerText = `${e.target.value}%`;
+    });
+    sliderChaff.addEventListener('input', (e) => {
+      CONFIG.chaffEffectiveness = e.target.value / 100;
+      chaffPctText.innerText = `${e.target.value}%`;
+    });
+    sliderDircmEff.addEventListener('input', (e) => {
+      CONFIG.dircmEffectiveness = e.target.value / 100;
+      dircmEffPctText.innerText = `${e.target.value}%`;
+    });
+    sliderDircm.addEventListener('input', (e) => {
+      CONFIG.dircmTrackingTime = parseFloat(e.target.value);
+      dircmPctText.innerText = `${e.target.value}s`;
+    });
+
+    function togglePause() {
+      sound.init();
+      if (GAME.state === 'PLAYING') {
+        GAME.state = 'PAUSED';
+        menuHeaderTitle.innerText = 'MISSION PAUSED';
+        btnResumeMission.innerText = 'RESUME MISSION';
+        btnRestartMission.style.display = 'block';
+        briefingModal.style.display = 'flex';
+      } else if (GAME.state === 'PAUSED') {
+        resumeGame();
+      }
+    }
+
+    pauseBtn.addEventListener('click', togglePause);
+
+    function resumeGame() {
+      sound.init();
+      briefingModal.style.display = 'none';
+      GAME.state = 'PLAYING';
+    }
+    btnResumeMission.addEventListener('click', resumeGame);
+    btnRestartMission.addEventListener('click', () => {
+      resetGameData();
+      resumeGame();
+    });
+
+    document.getElementById('btnReplay').addEventListener('click', () => {
+      document.getElementById('gameOverModal').style.display = 'none';
+      resetGameData();
+      resumeGame();
+    });
+
+    /**
+     * Procedural World Terrain Generation
+     */
+    function initTerrain() {
+      terrainFeatures.length = 0;
+      for (let i = 0; i < 48; i++) {
+        terrainFeatures.push({
+          x: Math.random() * (WORLD_WIDTH || 3000),
+          y: Math.random() * 2000,
+          w: 120 + Math.random() * 240,
+          h: 80 + Math.random() * 180,
+          col: ['#0f2413', '#142c19', '#0d1e11', '#18361f'][Math.floor(Math.random() * 4)]
+        });
+      }
+    }
+
+    /**
+     * Ground Threat Spawner
+     */
+    let enemySpawnTimer = 0;
+    function spawnEnemies(dt) {
+      enemySpawnTimer += dt;
+      const interval = Math.max(1.2, 2.2 - (GAME.elapsedTime * 0.015));
+      if (enemySpawnTimer > interval) {
+        enemySpawnTimer = 0;
+        const roll = Math.random();
+
+        if (roll < 0.35) {
+          const posX = Math.max(180, Math.min(WORLD_WIDTH - 180, Math.random() * WORLD_WIDTH));
+          groundEnemies.push({
+            id: Math.random(),
+            type: 'SAM',
+            x: posX,
+            y: -140,
+            radarAngle: Math.random() * Math.PI * 2,
+            radarSpeed: 0.8 + Math.random() * 0.7,
+            fireTimer: 1.5 + Math.random() * 2.0
+          });
+        } else {
+          const count = 2 + Math.floor(Math.random() * 3);
+          const cx = Math.max(100, Math.min(WORLD_WIDTH - 100, Math.random() * WORLD_WIDTH));
+          for (let k = 0; k < count; k++) {
+            groundEnemies.push({
+              id: Math.random(),
+              type: 'MANPADS',
+              x: Math.max(50, Math.min(WORLD_WIDTH - 50, cx + (Math.random() - 0.5) * 150)),
+              y: -100 + (Math.random() - 0.5) * 80,
+              fireTimer: 1.0 + Math.random() * 2.5
+            });
+          }
+        }
+      }
+    }
+
+    function fireMissile(enemy) {
+      const isSam = enemy.type === 'SAM';
+      sound.playLaunch(isSam);
+      const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+      missiles.push({
+        id: Math.random(),
+        type: isSam ? 'SAM' : 'MANPADS',
+        x: enemy.x,
+        y: enemy.y,
+        vx: Math.cos(angle) * (isSam ? 230 : 200),
+        vy: Math.sin(angle) * (isSam ? 230 : 200),
+        maxSpeed: isSam ? 360 : 390,
+        turnRate: isSam ? 2.1 : 3.0,
+        lifeTimer: isSam ? CONFIG.samMissileLife : CONFIG.manpadMissileLife,
+        maxLife: isSam ? CONFIG.samMissileLife : CONFIG.manpadMissileLife,
+        distracted: false,
+        brokenLock: false,
+        dircmProcessed: false // Flag to ensure DIRCM cycles once per missile
+      });
+    }
+
+    /**
+     * DIRCM Countermeasure Engine with Effectiveness Probability
+     * Tracks the nearest unhandled MANPAD missile for CONFIG.dircmTrackingTime (1.5s).
+     * Rolls against CONFIG.dircmEffectiveness:
+     * - Success: lock breaks, missile flies off, defeat recorded.
+     * - Failure: missile homing persists, DIRCM moves on without knowing -> warns player to use FLARES!
+     */
+    function updateDircm(dt) {
+      // Manage status banner expiration
+      if (dircm.statusTimer > 0) {
+        dircm.statusTimer -= dt;
+      }
+
+      const dispDircm = document.getElementById('dispDircmState');
+
+      if (!GAME.dircmEnabled) {
+        dircm.active = false;
+        dircm.targetMissile = null;
+        dircm.laserTimer = 0.0;
+        dispDircm.innerText = 'OFF';
+        dispDircm.style.color = '#94a3b8';
+        return;
+      }
+
+      let nearestManpad = null;
+      let minDist = Infinity;
+
+      // Find nearest active MANPADS that has NOT had a full DIRCM engagement cycle yet
+      for (const m of missiles) {
+        if (m.type === 'MANPADS' && !m.distracted && !m.brokenLock && !m.dircmProcessed) {
+          const d = Math.hypot(m.x - player.x, m.y - player.y);
+          if (d < minDist) {
+            minDist = d;
+            nearestManpad = m;
+          }
+        }
+      }
+
+      if (nearestManpad) {
+        if (dircm.targetMissile !== nearestManpad) {
+          dircm.targetMissile = nearestManpad;
+          dircm.laserTimer = 0.0;
+        }
+
+        dircm.active = true;
+        dircm.laserTimer += dt;
+        sound.playLaserHum();
+
+        const progress = Math.min(100, Math.floor((dircm.laserTimer / CONFIG.dircmTrackingTime) * 100));
+        dispDircm.innerText = `${progress}%`;
+        dispDircm.style.color = '#f472b6';
+
+        // When 1.5s engagement cycle completes:
+        if (dircm.laserTimer >= CONFIG.dircmTrackingTime) {
+          const roll = Math.random();
+          const target = dircm.targetMissile;
+          target.dircmProcessed = true; // Mark as processed so DIRCM unconditionally moves to next threat
+
+          if (roll <= CONFIG.dircmEffectiveness) {
+            // SUCCESSFUL DEFEAT: Break lock & divert missile away
+            target.brokenLock = true;
+            target.distracted = true;
+            const awayAngle = Math.atan2(target.y - player.y, target.x - player.x) + (Math.random() > 0.5 ? 1.6 : -1.6);
+            target.vx = Math.cos(awayAngle) * target.maxSpeed;
+            target.vy = Math.sin(awayAngle) * target.maxSpeed;
+
+            GAME.dircmDefeats++;
+            dircm.statusMsg = 'DIRCM: LOCK BROKEN (THREAT DEFEATED)';
+            dircm.statusIsWarning = false;
+          } else {
+            // FAILED DEFEAT: DIRCM does NOT know it failed; missile continues homing!
+            // Signal player to pop flares!
+            dircm.statusMsg = '⚠️ DIRCM CYCLE COMPLETE (HOMING PERSISTS - DEPLOY FLARES!)';
+            dircm.statusIsWarning = true;
+          }
+
+          dircm.statusTimer = 2.4;
+          dircm.targetMissile = null;
+          dircm.laserTimer = 0.0;
+        }
+      } else {
+        dircm.active = false;
+        dircm.targetMissile = null;
+        dircm.laserTimer = 0.0;
+        dispDircm.innerText = 'ON';
+        dispDircm.style.color = '#fff';
+      }
+
+      // Update tactical status banner DOM
+      const statusBanner = document.getElementById('dircmStatusMsg');
+      if (dircm.statusTimer > 0 && dircm.statusMsg) {
+        statusBanner.style.display = 'block';
+        statusBanner.innerText = dircm.statusMsg;
+        if (dircm.statusIsWarning) {
+          statusBanner.style.borderColor = '#ef4444';
+          statusBanner.style.color = '#ff6b6b';
+          statusBanner.style.boxShadow = '0 0 16px rgba(239, 68, 68, 0.6)';
+        } else {
+          statusBanner.style.borderColor = '#3bf377';
+          statusBanner.style.color = '#86efac';
+          statusBanner.style.boxShadow = '0 0 16px rgba(59, 243, 119, 0.4)';
+        }
+      } else {
+        statusBanner.style.display = 'none';
+      }
+    }
+
+    /**
+     * Auto Countermeasure Dispenser
+     */
+    function processAutoCountermeasures() {
+      if (!GAME.autoCm) return;
+      for (const m of missiles) {
+        if (m.distracted || m.brokenLock) continue;
+        const dist = Math.hypot(m.x - player.x, m.y - player.y);
+        if (dist < 320) {
+          if (m.type === 'MANPADS' && GAME.flaresLeft > 0) {
+            triggerFlare();
+            break;
+          } else if (m.type === 'SAM' && GAME.chaffLeft > 0) {
+            triggerChaff();
+            break;
+          }
+        }
+      }
+    }
+
+    /**
+     * Primary Physics & State Simulation Loop
+     */
+    function updateGame(dt) {
+      GAME.elapsedTime += dt;
+      const mm = Math.floor(GAME.elapsedTime / 60).toString().padStart(2, '0');
+      const ss = (GAME.elapsedTime % 60).toFixed(2).padStart(5, '0');
+      document.getElementById('hudClock').innerText = `${mm}:${ss}`;
+      document.getElementById('hudEvaded').innerText = GAME.evadedCount;
+
+      const targetAlt = (GAME.altitude === 'HIGH') ? 1 : 0;
+      player.altTransition += (targetAlt - player.altTransition) * 6 * dt;
+
+      let mx = 0, my = 0;
+      if (keys.w || keys.ArrowUp) my -= 1;
+      if (keys.s || keys.ArrowDown) my += 1;
+      if (keys.a || keys.ArrowLeft) mx -= 1;
+      if (keys.d || keys.ArrowRight) mx += 1;
+
+      if (joystick.active) {
+        mx = joystick.dx / joystick.maxRadius;
+        my = joystick.dy / joystick.maxRadius;
+      }
+
+      const len = Math.hypot(mx, my);
+      if (len > 0.05) {
+        const nx = mx / (len > 1 ? len : 1);
+        const ny = my / (len > 1 ? len : 1);
+        player.vx += (nx * player.speed - player.vx) * 8 * dt;
+        player.vy += (ny * player.speed - player.vy) * 8 * dt;
+      } else {
+        player.vx *= Math.pow(0.02, dt);
+        player.vy *= Math.pow(0.02, dt);
+      }
+
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+
+      player.x = Math.max(30, Math.min(WORLD_WIDTH - 30, player.x));
+      player.y = Math.max(70, Math.min(screenHeight - 70, player.y));
+
+      const desiredCamX = player.x - screenWidth / 2;
+      const maxCamX = Math.max(0, WORLD_WIDTH - screenWidth);
+      GAME.cameraX += (Math.max(0, Math.min(maxCamX, desiredCamX)) - GAME.cameraX) * 8 * dt;
+
+      GAME.terrainScrollY = (GAME.terrainScrollY + GAME.scrollSpeed * dt) % (screenHeight * 2);
+      player.rotorAngle += (GAME.altitude === 'HIGH' ? 38 : 28) * dt;
+
+      spawnEnemies(dt);
+
+      // Determine nearest SAM radars for Targeted Jammer
+      const samSites = groundEnemies.filter(e => e.type === 'SAM');
+      samSites.sort((a, b) => {
+        return Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y);
+      });
+      const targetedSams = new Set();
+      if (GAME.jamActive) {
+        const count = Math.min(GAME.jamTargetMode, samSites.length);
+        for (let i = 0; i < count; i++) targetedSams.add(samSites[i].id);
+      }
+
+      // Update Ground Threats
+      const baseSamRadius = getSamRadarBaseRadius();
+      const altSamMultiplier = (GAME.altitude === 'LOW') ? 0.50 : 1.0;
+
+      for (let i = groundEnemies.length - 1; i >= 0; i--) {
+        const e = groundEnemies[i];
+        e.y += GAME.scrollSpeed * dt;
+        if (e.radarSpeed) e.radarAngle += e.radarSpeed * dt;
+
+        if (e.y > screenHeight + baseSamRadius + 100) {
+          groundEnemies.splice(i, 1);
+          continue;
+        }
+
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+
+        if (e.type === 'MANPADS') {
+          if (GAME.altitude === 'LOW') {
+            if (dist < 420) {
+              e.fireTimer -= dt;
+              if (e.fireTimer <= 0) {
+                fireMissile(e);
+                e.fireTimer = 3.5 + Math.random() * 2.5;
+              }
+            }
+          }
+        } else if (e.type === 'SAM') {
+          const isJammed = targetedSams.has(e.id);
+          const jamMultiplier = isJammed ? 0.30 : 1.0;
+          const detectionRadius = baseSamRadius * altSamMultiplier * jamMultiplier;
+          e.currentRadius = detectionRadius;
+          e.isJammed = isJammed;
+
+          if (dist <= detectionRadius) {
+            e.fireTimer -= dt;
+            if (e.fireTimer <= 0) {
+              fireMissile(e);
+              e.fireTimer = 4.2 + Math.random() * 2.5;
+            }
+          }
+        }
+      }
+
+      updateMissiles(dt);
+      updateDecoys(dt);
+      updateDircm(dt);
+      processAutoCountermeasures();
+      evaluateThreatWarnings();
+    }
+
+    function updateMissiles(dt) {
+      for (let i = missiles.length - 1; i >= 0; i--) {
+        const m = missiles[i];
+        m.lifeTimer -= dt;
+
+        // Self Destruct Timeout
+        if (m.lifeTimer <= 0) {
+          spawnExplosion(m.x, m.y, '#f59e0b', 16);
+          sound.playExplosion();
+          GAME.evadedCount++;
+          missiles.splice(i, 1);
+          continue;
+        }
+
+        let target = { x: player.x, y: player.y };
+
+        // Countermeasure Defeat Checks (Flares for MANPADS, Chaff for SAMs)
+        if (!m.distracted && !m.brokenLock) {
+          if (m.type === 'MANPADS') {
+            for (const d of decoys) {
+              if (d.type === 'FLARE') {
+                const distToFlare = Math.hypot(d.x - m.x, d.y - m.y);
+                if (distToFlare < 300 && Math.random() < CONFIG.flareEffectiveness) {
+                  m.distracted = true;
+                  m.distractedTarget = d;
+                  break;
+                }
+              }
+            }
+          } else if (m.type === 'SAM') {
+            for (const d of decoys) {
+              if (d.type === 'CHAFF') {
+                const distToChaff = Math.hypot(d.x - m.x, d.y - m.y);
+                if (distToChaff < 340 && Math.random() < CONFIG.chaffEffectiveness) {
+                  m.distracted = true;
+                  m.distractedTarget = d;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (m.distracted && m.distractedTarget) {
+          target = { x: m.distractedTarget.x, y: m.distractedTarget.y };
+        }
+
+        if (!m.brokenLock) {
+          const targetAngle = Math.atan2(target.y - m.y, target.x - m.x);
+          const currentAngle = Math.atan2(m.vy, m.vx);
+          let diff = targetAngle - currentAngle;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+
+          const steer = Math.sign(diff) * Math.min(Math.abs(diff), m.turnRate * dt);
+          const newAngle = currentAngle + steer;
+          const spd = Math.min(m.maxSpeed, Math.hypot(m.vx, m.vy) + 140 * dt);
+          m.vx = Math.cos(newAngle) * spd;
+          m.vy = Math.sin(newAngle) * spd;
+        }
+
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+
+        if (Math.random() < 0.8) {
+          particles.push({
+            x: m.x,
+            y: m.y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8 + 15,
+            life: 0.4,
+            maxLife: 0.4,
+            col: m.type === 'SAM' ? 'rgba(210, 230, 255, 0.7)' : 'rgba(255, 170, 50, 0.7)',
+            sz: m.type === 'SAM' ? 4 : 3
+          });
+        }
+
+        const distToPlayer = Math.hypot(player.x - m.x, player.y - m.y);
+        const hitZone = player.hitRadius * (player.altTransition > 0.5 ? 1.25 : 1.0);
+        if (distToPlayer < hitZone + 8) {
+          spawnExplosion(player.x, player.y, '#ef4444', 35);
+          sound.playExplosion();
+          triggerGameOver(m.type === 'SAM' ? 'HEAVY RADAR SAM DIRECT IMPACT' : 'MANPADS INFRARED HOMING DETONATION');
+          return;
+        }
+      }
+    }
+
+    function updateDecoys(dt) {
+      for (let i = decoys.length - 1; i >= 0; i--) {
+        const d = decoys[i];
+        d.life -= dt;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        d.vx *= 0.98;
+        d.vy *= 0.98;
+        if (d.life <= 0) decoys.splice(i, 1);
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function spawnExplosion(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 40 + Math.random() * 200;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          life: 0.5 + Math.random() * 0.4,
+          maxLife: 0.9,
+          col: color,
+          sz: 3 + Math.random() * 4
+        });
+      }
+    }
+
+    /**
+     * Threat Warnings: Repositioned Bottom Right of Buttons in 2x Font
+     * - "RF SAM locking detected" appears ONLY when an active SAM missile is homing towards us.
+     * - "MANPAD launch detected" appears when an active MANPAD missile is homing towards us.
+     */
+    function evaluateThreatWarnings() {
+      let hasManpadLock = false;
+      let hasSamLock = false;
+
+      for (const m of missiles) {
+        if (!m.distracted && !m.brokenLock) {
+          if (m.type === 'MANPADS') hasManpadLock = true;
+          if (m.type === 'SAM') hasSamLock = true;
+        }
+      }
+
+      const warnManpadEl = document.getElementById('warnManpad');
+      const warnSamEl = document.getElementById('warnSam');
+
+      warnManpadEl.style.display = hasManpadLock ? 'block' : 'none';
+      warnSamEl.style.display = hasSamLock ? 'block' : 'none';
+    }
+
+    /**
+     * Primary Render Engine
+     */
+    function renderFrame() {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(dpr, dpr);
+
+      ctx.save();
+      ctx.translate(-GAME.cameraX, 0);
+
+      renderTerrain();
+      renderGroundThreats();
+      renderJammerBeams();
+      renderRWRBeams();
+      renderDecoys();
+      renderMissiles();
+      renderDircmLaser();
+      renderHelicopter();
+      renderParticles();
+      renderWorldBoundaries();
+
+      ctx.restore();
+
+      renderJoystick();
+    }
+
+    function renderTerrain() {
+      ctx.strokeStyle = 'rgba(59, 243, 119, 0.08)';
+      ctx.lineWidth = 1;
+      const gridSize = 120;
+      const offY = GAME.terrainScrollY % gridSize;
+
+      for (let x = 0; x < WORLD_WIDTH; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, screenHeight);
+        ctx.stroke();
+      }
+      for (let y = -gridSize; y < screenHeight + gridSize; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + offY);
+        ctx.lineTo(WORLD_WIDTH, y + offY);
+        ctx.stroke();
+      }
+
+      for (const t of terrainFeatures) {
+        const py = (t.y + GAME.terrainScrollY) % (screenHeight * 2) - 100;
+        ctx.fillStyle = t.col;
+        ctx.beginPath();
+        ctx.roundRect(t.x, py, t.w, t.h, 18);
+        ctx.fill();
+      }
+    }
+
+    function renderGroundThreats() {
+      const baseSamRadius = getSamRadarBaseRadius();
+      const altSamMultiplier = (GAME.altitude === 'LOW') ? 0.50 : 1.0;
+
+      // PASS 1: Glowing Radar Detection Envelopes (75% Screen Size)
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      for (const e of groundEnemies) {
+        if (e.type === 'SAM') {
+          const jamMultiplier = e.isJammed ? 0.30 : 1.0;
+          const radius = baseSamRadius * altSamMultiplier * jamMultiplier;
+
+          const grad = ctx.createRadialGradient(e.x, e.y, 10, e.x, e.y, radius);
+          if (e.isJammed) {
+            grad.addColorStop(0, 'rgba(168, 85, 247, 0.32)');
+            grad.addColorStop(0.75, 'rgba(168, 85, 247, 0.12)');
+            grad.addColorStop(1, 'rgba(168, 85, 247, 0.01)');
+          } else if (GAME.altitude === 'LOW') {
+            grad.addColorStop(0, 'rgba(234, 179, 8, 0.28)');
+            grad.addColorStop(0.75, 'rgba(234, 179, 8, 0.10)');
+            grad.addColorStop(1, 'rgba(234, 179, 8, 0.01)');
+          } else {
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.34)');
+            grad.addColorStop(0.75, 'rgba(239, 68, 68, 0.13)');
+            grad.addColorStop(1, 'rgba(239, 68, 68, 0.01)');
+          }
+
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // PASS 2: Boundaries, transmitters & MANPADS
+      for (const e of groundEnemies) {
+        if (e.type === 'SAM') {
+          const jamMultiplier = e.isJammed ? 0.30 : 1.0;
+          const radius = baseSamRadius * altSamMultiplier * jamMultiplier;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = e.isJammed ? '#c084fc' : (GAME.altitude === 'LOW' ? '#fde047' : '#ef4444');
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([12, 10]);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = e.isJammed ? '#a855f7' : '#ef4444';
+          ctx.stroke();
+
+          ctx.save();
+          ctx.translate(e.x, e.y);
+          ctx.rotate(e.radarAngle);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-5, -16, 10, 32);
+          ctx.beginPath();
+          ctx.arc(0, 0, 7, 0, Math.PI * 2);
+          ctx.fillStyle = '#fca5a5';
+          ctx.fill();
+          ctx.restore();
+
+          ctx.font = 'bold 11px monospace';
+          ctx.fillStyle = e.isJammed ? '#d8b4fe' : (GAME.altitude === 'LOW' ? '#fde047' : '#fca5a5');
+          const txt = e.isJammed ? 'SAM [JAMMED -70%]' : (GAME.altitude === 'LOW' ? 'SAM [NOE -50%]' : 'SAM [FL100 100%]');
+          ctx.fillText(txt, e.x - 55, e.y + 36);
+          ctx.restore();
+
+        } else if (e.type === 'MANPADS') {
+          ctx.save();
+          const active = (GAME.altitude === 'LOW');
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 8, 0, Math.PI * 2);
+          ctx.fillStyle = active ? '#1e293b' : '#334155';
+          ctx.strokeStyle = active ? '#fbbf24' : '#64748b';
+          ctx.lineWidth = 1.5;
+          ctx.fill();
+          ctx.stroke();
+
+          const ang = active ? Math.atan2(player.y - e.y, player.x - e.x) : -Math.PI / 2;
+          ctx.save();
+          ctx.translate(e.x, e.y);
+          ctx.rotate(ang);
+          ctx.fillStyle = active ? '#f59e0b' : '#64748b';
+          ctx.fillRect(-2, -3, 16, 6);
+          ctx.restore();
+
+          ctx.font = '9px monospace';
+          ctx.fillStyle = active ? '#fbbf24' : '#64748b';
+          ctx.fillText(active ? 'MANPADS' : 'MANPADS (OOR)', e.x - 30, e.y + 18);
+          ctx.restore();
+        }
+      }
+    }
+
+    function renderRWRBeams() {
+      const baseSamRadius = getSamRadarBaseRadius();
+      const altSamMultiplier = (GAME.altitude === 'LOW') ? 0.50 : 1.0;
+
+      for (const e of groundEnemies) {
+        if (e.type === 'SAM') {
+          const jamMultiplier = e.isJammed ? 0.30 : 1.0;
+          const rad = baseSamRadius * altSamMultiplier * jamMultiplier;
+          const d = Math.hypot(e.x - player.x, e.y - player.y);
+
+          if (d <= rad * 1.35) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(e.x, e.y);
+            ctx.strokeStyle = d <= rad ? 'rgba(239, 68, 68, 0.75)' : 'rgba(251, 191, 36, 0.3)';
+            ctx.lineWidth = d <= rad ? 2 : 1;
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+
+            const ang = Math.atan2(e.y - player.y, e.x - player.x);
+            const bx = player.x + Math.cos(ang) * 40;
+            const by = player.y + Math.sin(ang) * 40;
+            ctx.beginPath();
+            ctx.arc(bx, by, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = d <= rad ? '#ef4444' : '#fbbf24';
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    /**
+     * Renders animated glowing purple lines from helicopter to the jammed SAM radars
+     */
+    function renderJammerBeams() {
+      if (!GAME.jamActive) return;
+
+      const samSites = groundEnemies.filter(e => e.type === 'SAM' && e.isJammed);
+      if (samSites.length === 0) return;
+
+      const now = performance.now() * 0.003;
+      const pulseDash = Math.floor(now * 30) % 20;
+
+      ctx.save();
+      for (const s of samSites) {
+        // Outer glow
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(s.x, s.y);
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.35)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        // Inner core beam with directional dash animation
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(s.x, s.y);
+        ctx.strokeStyle = '#d8b4fe';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([12, 6]);
+        ctx.lineDashOffset = -pulseDash;
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        // Target jam reticle
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 28, 0, Math.PI * 2);
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function renderDircmLaser() {
+      if (!dircm.active || !dircm.targetMissile) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(dircm.targetMissile.x, dircm.targetMissile.y);
+      ctx.strokeStyle = '#ec4899';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#f472b6';
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(dircm.targetMissile.x, dircm.targetMissile.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#fdf2f8';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function renderDecoys() {
+      for (const d of decoys) {
+        ctx.save();
+        if (d.type === 'FLARE') {
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#fbbf24';
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 12;
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(103, 232, 249, 0.7)';
+          ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    function renderMissiles() {
+      for (const m of missiles) {
+        ctx.save();
+        const ang = Math.atan2(m.vy, m.vx);
+        ctx.translate(m.x, m.y);
+        ctx.rotate(ang);
+
+        const isSam = m.type === 'SAM';
+        ctx.fillStyle = isSam ? '#e2e8f0' : '#fb923c';
+        ctx.fillRect(-12, -3, 24, 6);
+
+        ctx.beginPath();
+        ctx.moveTo(12, -3);
+        ctx.lineTo(18, 0);
+        ctx.lineTo(12, 3);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(-12, -2);
+        ctx.lineTo(-20 - Math.random() * 8, 0);
+        ctx.lineTo(-12, 2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+
+        ctx.rotate(-ang);
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(-16, -18, 32, 4);
+        const pct = Math.max(0, m.lifeTimer / m.maxLife);
+        ctx.fillStyle = pct < 0.3 ? '#ef4444' : '#22c55e';
+        ctx.fillRect(-15, -17, 30 * pct, 2);
+
+        // Visual cue if missile withstood DIRCM cycle and is still homing
+        if (m.type === 'MANPADS' && m.dircmProcessed && !m.brokenLock && !m.distracted) {
+          ctx.font = 'bold 9px monospace';
+          ctx.fillStyle = '#ff4444';
+          ctx.fillText('HOMING', -16, -23);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function renderHelicopter() {
+      ctx.save();
+      const alt = player.altTransition;
+      const scale = 1.0 + (alt * 0.32);
+      const shadowDist = 12 + (alt * 32);
+
+      ctx.save();
+      ctx.translate(player.x + shadowDist * 0.5, player.y + shadowDist);
+      ctx.scale(scale * 0.9, scale * 0.9);
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.45 - alt * 0.2})`;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 16, 26, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.translate(player.x, player.y);
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = '#14361b';
+      ctx.strokeStyle = '#3bf377';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 15, 24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.ellipse(0, -7, 8, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f2914';
+      ctx.fillRect(-3, 22, 6, 24);
+      ctx.strokeRect(-3, 22, 6, 24);
+      ctx.fillRect(-8, 44, 16, 3);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, 42, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.fill();
+
+      ctx.rotate(player.rotorAngle);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(-4, -42, 8, 84);
+      ctx.fillRect(-42, -4, 84, 8);
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    function renderParticles() {
+      for (const p of particles) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.fillStyle = p.col;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function renderWorldBoundaries() {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(10, 0);
+      ctx.lineTo(10, screenHeight);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(WORLD_WIDTH - 10, 0);
+      ctx.lineTo(WORLD_WIDTH - 10, screenHeight);
+      ctx.stroke();
+    }
+
+    function renderJoystick() {
+      if (!joystick.active) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(joystick.startX, joystick.startY, joystick.maxRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(59, 243, 119, 0.12)';
+      ctx.strokeStyle = 'rgba(59, 243, 119, 0.65)';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(joystick.startX + joystick.dx, joystick.startY + joystick.dy, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#3bf377';
+      ctx.shadowColor = '#3bf377';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function triggerGameOver(reason) {
+      GAME.state = 'GAMEOVER';
+      document.getElementById('causeOfDeath').innerText = reason;
+      const mm = Math.floor(GAME.elapsedTime / 60).toString().padStart(2, '0');
+      const ss = (GAME.elapsedTime % 60).toFixed(2).padStart(5, '0');
+      document.getElementById('statFinalTime').innerText = `${mm}:${ss}`;
+      document.getElementById('statFinalEvaded').innerText = GAME.evadedCount;
+      document.getElementById('statFinalFlares').innerText = `${GAME.flaresUsed} / 6`;
+      document.getElementById('statFinalChaff').innerText = `${GAME.chaffUsed} / 6`;
+      document.getElementById('statFinalDircm').innerText = `${GAME.dircmDefeats}`;
+      document.getElementById('gameOverModal').style.display = 'flex';
+    }
+
+    function resetGameData() {
+      GAME.elapsedTime = 0;
+      GAME.evadedCount = 0;
+      GAME.flaresLeft = 6;
+      GAME.flaresUsed = 0;
+      GAME.chaffLeft = 6;
+      GAME.chaffUsed = 0;
+      GAME.dircmDefeats = 0;
+      GAME.jamActive = false;
+      GAME.dircmEnabled = true;
+      GAME.altitude = 'LOW';
+      GAME.cameraX = 0;
+
+      document.getElementById('dispFlareCount').innerText = '6';
+      document.getElementById('dispChaffCount').innerText = '6';
+      document.getElementById('btnJammer').classList.remove('btn-active-purple');
+      document.getElementById('dispJammerStatus').innerText = 'OFF';
+      const dircmBtn = document.getElementById('btnDircm');
+      dircmBtn.classList.add('btn-active-state');
+      document.getElementById('dispDircmState').innerText = 'ON';
+      document.getElementById('dispDircmState').style.color = '#fff';
+      updateAltitudeDisplay();
+
+      player.x = WORLD_WIDTH / 2;
+      player.y = screenHeight * 0.72;
+      player.vx = 0;
+      player.vy = 0;
+      player.altTransition = 0;
+
+      groundEnemies.length = 0;
+      missiles.length = 0;
+      decoys.length = 0;
+      particles.length = 0;
+      dircm.active = false;
+      dircm.targetMissile = null;
+      dircm.laserTimer = 0.0;
+      dircm.statusMsg = '';
+      dircm.statusTimer = 0.0;
+      initTerrain();
+    }
+
+    /**
+     * Primary Animation Loop
+     */
+    let lastTime = performance.now();
+    function mainLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.06);
+      lastTime = now;
+
+      if (GAME.state === 'PLAYING') {
+        updateGame(dt);
+      }
+      renderFrame();
+      requestAnimationFrame(mainLoop);
+    }
+
+    window.addEventListener('load', () => {
+      handleResize();
+      initTerrain();
+      updateAltitudeDisplay();
+      requestAnimationFrame(mainLoop);
+    });
+  </script>
+</body>
+</html>
